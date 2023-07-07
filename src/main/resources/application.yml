@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    driverClassName: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/phoneContacts
+    username: root
+    password: 2003
+  jpa:
+    hibernate.ddl-auto: update
+    show-sql: true
+#jwt:
+#  secret: foodDelivery
+#  expiration: 300000
