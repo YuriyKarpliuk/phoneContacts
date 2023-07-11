@@ -36,36 +36,27 @@ public class ContactServiceImpl implements ContactService {
     private UserRepository userRepository;
 
     public boolean isContactValid(ContactAddRequest contactAddRequest) {
-        boolean allEmailsValid = true;
-        boolean allPhonesValid = true;
+        boolean allEmailsValid = false;
+        boolean allPhonesValid = false;
 
         Set<String> emails = contactAddRequest.getEmails();
         Set<String> phoneNumbers = contactAddRequest.getPhones();
 
         for (String email : emails) {
-            if (!EmailValidator.isValid(email)) {
-                allEmailsValid = false;
+            if (EmailValidator.isValid(email) && emails != null && !emails.stream().anyMatch(contactRepository::existsContactByEmails)) {
+                allEmailsValid = true;
                 break;
             }
         }
         for (String phone : phoneNumbers) {
-            if (!PhoneNumberValidator.isValid(phone)) {
-                allPhonesValid = false;
+            if (PhoneNumberValidator.isValid(phone) &&phoneNumbers != null && !phoneNumbers.stream().anyMatch(contactRepository::existsContactByPhones) ) {
+                allPhonesValid = true;
                 break;
             }
         }
-        if (emails != null && emails.stream().anyMatch(contactRepository::existsContactByEmails) && !allEmailsValid) {
-            allPhonesValid = false;
-            return allPhonesValid;
-        }
 
 
-        if (phoneNumbers != null && phoneNumbers.stream().anyMatch(contactRepository::existsContactByPhones) && !allPhonesValid) {
-            allPhonesValid = false;
-            return allPhonesValid;
-        }
-
-        return allEmailsValid;
+        return allEmailsValid&&allPhonesValid;
     }
 
     @Override

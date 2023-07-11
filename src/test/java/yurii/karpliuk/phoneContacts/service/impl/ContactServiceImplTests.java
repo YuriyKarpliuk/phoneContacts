@@ -82,7 +82,7 @@ public class ContactServiceImplTests {
         when(contactRepository.existsContactByEmails(any())).thenReturn(false);
         when(contactRepository.save(any())).thenReturn(new Contact());
 
-        ResponseEntity<?> response = contactService.addContact(contactAddRequest, username);
+        ResponseEntity<?> response = contactService.addContact(contactAddRequest, username,);
 
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
