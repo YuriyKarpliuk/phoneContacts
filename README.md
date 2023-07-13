@@ -25,3 +25,6 @@ PhoneContacts is a web application that allows the User to add, update, delete c
 
 ## Swagger. REST APIs Documentation
 * Swagger UI endpoint: http://localhost:8080/swagger-ui.html
+  ![image](https://github.com/YuriyKarpliuk/phoneContacts/assets/99088402/e566b9d6-2fdd-47c3-adad-38e463d5c795)
+  ![image](https://github.com/YuriyKarpliuk/phoneContacts/assets/99088402/66ac4006-75ec-441b-b93b-b2b7c67f31c8)
+  ![image](https://github.com/YuriyKarpliuk/phoneContacts/assets/99088402/707f8d69-ee91-4572-87d4-c45409c25742)
