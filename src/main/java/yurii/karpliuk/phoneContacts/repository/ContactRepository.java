@@ -12,9 +12,10 @@ import java.util.Set;
 
 @Repository
 public interface ContactRepository extends JpaRepository<Contact,Long> {
-    boolean existsContactByEmails(String email);
-    boolean existsContactByPhones(String phone);
+    boolean existsContactByEmailsAndUserId(String email, Long userId);
+    boolean existsContactByPhonesAndUserId(String phone,Long userId);
 
     Optional<Contact> findByName(String name);
+    Optional<Contact> findByNameAndUserId(String name,Long userId);
     Set<Contact> findAllByUser(User user);
 }

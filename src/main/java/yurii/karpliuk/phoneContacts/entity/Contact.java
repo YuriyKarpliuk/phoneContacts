@@ -16,8 +16,6 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Contact extends IdHolder {
-    @Column(unique = true)
-
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)

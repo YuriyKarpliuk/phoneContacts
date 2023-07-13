@@ -1,4 +1,4 @@
-package yurii.karpliuk.phoneContacts.security;
+package yurii.karpliuk.phoneContacts.security.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

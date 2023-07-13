@@ -3,6 +3,7 @@ package yurii.karpliuk.phoneContacts.service.impl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import yurii.karpliuk.phoneContacts.dto.request.ContactAddRequest;
@@ -30,12 +31,14 @@ import java.util.*;
 public class ContactServiceImpl implements ContactService {
     private final Path root = Paths.get("D:\\JavaProject\\phoneContacts\\src\\main\\resources\\images");
 
+
     @Autowired
     private ContactRepository contactRepository;
     @Autowired
     private UserRepository userRepository;
 
-    public boolean isContactValid(ContactAddRequest contactAddRequest) {
+    @Override
+    public boolean isContactValid(ContactAddRequest contactAddRequest, Long userId) {
         boolean allEmailsValid = false;
         boolean allPhonesValid = false;
 
@@ -43,46 +46,81 @@ public class ContactServiceImpl implements ContactService {
         Set<String> phoneNumbers = contactAddRequest.getPhones();
 
         for (String email : emails) {
-            if (EmailValidator.isValid(email) && emails != null && !emails.stream().anyMatch(contactRepository::existsContactByEmails)) {
+            if (EmailValidator.isValid(email) && emails != null) {
                 allEmailsValid = true;
                 break;
             }
         }
         for (String phone : phoneNumbers) {
-            if (PhoneNumberValidator.isValid(phone) &&phoneNumbers != null && !phoneNumbers.stream().anyMatch(contactRepository::existsContactByPhones) ) {
+            if (PhoneNumberValidator.isValid(phone) && phoneNumbers != null) {
                 allPhonesValid = true;
                 break;
             }
         }
 
 
-        return allEmailsValid&&allPhonesValid;
+        return allEmailsValid && allPhonesValid;
     }
 
     @Override
-    public ResponseEntity<?> addContact(ContactAddRequest contactAddRequest, String username) {
-        if (isContactValid(contactAddRequest)) {
-            Contact contact = new Contact();
-            contact.setName(contactAddRequest.getName());
-            contact.setEmails(contactAddRequest.getEmails());
-            contact.setPhones(contactAddRequest.getPhones());
-            contact.setUser(userRepository.findByUsername(username).get());
-            contactRepository.save(contact);
-            log.info("In addContact ContactService - added contact: '{}'", contact);
-            return ResponseEntity.ok(new MessageResponse("Contact added successfully!"));
+    public boolean contactExistByEmails(Set<String> emails, Long userId) {
+        return emails.stream().anyMatch(email -> contactRepository.existsContactByEmailsAndUserId(email, userId));
+    }
+
+    @Override
+    public boolean contactExistByPhones(Set<String> phones, Long userId) {
+        return phones.stream().anyMatch(email -> contactRepository.existsContactByPhonesAndUserId(email, userId));
+    }
+
+    @Override
+    public Long getUserIdFromAuthentication(Authentication authentication) {
+        if (authentication.getPrincipal() instanceof User) {
+            User userDetails = (User) authentication.getPrincipal();
+            return userDetails.getId();
+        }
+        return null;
+    }
+
+    @Override
+    public ResponseEntity<?> addContact(ContactAddRequest contactAddRequest, Authentication authentication) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (isContactValid(contactAddRequest, userId)) {
+            if (contactExistByEmails(contactAddRequest.getEmails(), userId)) {
+                return ResponseEntity
+                        .badRequest()
+                        .body(new MessageResponse("Error: Contact is already created with such emails"));
+            }
+            if (contactExistByPhones(contactAddRequest.getPhones(), userId)) {
+                return ResponseEntity
+                        .badRequest()
+                        .body(new MessageResponse("Error: Contact is already created with such phones"));
+            } else {
+                Contact contact = new Contact();
+                contact.setName(contactAddRequest.getName());
+                contact.setEmails(contactAddRequest.getEmails());
+                contact.setPhones(contactAddRequest.getPhones());
+                contact.setUser(userRepository.findById(userId).get());
+                contactRepository.save(contact);
+                log.info("In addContact ContactService - added contact: '{}'", contact);
+                return ResponseEntity.ok(new MessageResponse("Contact added successfully!"));
+            }
         } else {
-            log.info("In addContact ContactService - contact: '{}' already exists", contactAddRequest);
+            log.info("In addContact ContactService - contact: '{}' wrong email or phone number", contactAddRequest);
             return ResponseEntity
                     .badRequest()
-                    .body(new MessageResponse("Error: Contact is already created or wrong email or phone number!"));
+                    .body(new MessageResponse("Error: Wrong email or phone number!"));
         }
     }
 
     @Override
-    public ResponseEntity<?> addContactImage(String name, String username, MultipartFile image) throws CouldNotStoreImageException {
-        boolean isContactCreated = contactRepository.findAll().stream().anyMatch(c -> c.getName().equalsIgnoreCase(name));
+    public ResponseEntity<?> addContactImage(String name, String username, MultipartFile image) throws
+            CouldNotStoreImageException {
+        Long userId = userRepository.findByUsername(username).get().getId();
+        boolean isContactCreated = contactRepository.findAll()
+                .stream()
+                .anyMatch(c -> c.getName().equalsIgnoreCase(name) && c.getUser().getId().equals(userId));
         if (isContactCreated) {
-            Contact contact = contactRepository.findByName(name).get();
+            Contact contact = contactRepository.findByNameAndUserId(name, userId).get();
             try {
                 Path path = this.root.resolve(Objects.requireNonNull(image.getOriginalFilename()));
                 Files.copy(image.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
@@ -104,17 +142,27 @@ public class ContactServiceImpl implements ContactService {
 
 
     @Override
-    public ResponseEntity<?> updateContact(ContactAddRequest contactAddRequest, String name) {
-        boolean isContactCreated = contactRepository.findAll().stream().anyMatch(c -> c.getName().equalsIgnoreCase(name));
-        if (isContactCreated && isContactValid(contactAddRequest)) {
-            Contact updatedContact = contactRepository.findByName(name).get();
-            updatedContact.setName(contactAddRequest.getName());
-            updatedContact.setEmails(contactAddRequest.getEmails());
-            updatedContact.setPhones(contactAddRequest.getPhones());
-            log.info("Update contact in ContactService with name: {}, emails{}, " +
-                    "phones: {} ", updatedContact.getName(), updatedContact.getEmails(), updatedContact.getPhones());
-            contactRepository.save(updatedContact);
-            return ResponseEntity.ok(new MessageResponse("Contact updated successfully!"));
+    public ResponseEntity<?> updateContact(ContactAddRequest contactAddRequest, String username, String name) {
+        Long userId = userRepository.findByUsername(username).get().getId();
+        boolean isContactCreated = contactRepository.findAll()
+                .stream()
+                .anyMatch(c -> c.getName().equalsIgnoreCase(name) && c.getUser().getId().equals(userId));
+        if (isContactCreated) {
+            Contact updatedContact = contactRepository.findByNameAndUserId(name, userId).get();
+            if (!isContactValid(contactAddRequest, userId)) {
+                log.info("In addContact ContactService - contact: '{}' wrong email or phone number", contactAddRequest);
+                return ResponseEntity
+                        .badRequest()
+                        .body(new MessageResponse("Error: Wrong email or phone number!"));
+            } else {
+                updatedContact.setName(contactAddRequest.getName());
+                updatedContact.setEmails(contactAddRequest.getEmails());
+                updatedContact.setPhones(contactAddRequest.getPhones());
+                log.info("Update contact in ContactService with name: {}, emails{}, " +
+                        "phones: {} ", updatedContact.getName(), updatedContact.getEmails(), updatedContact.getPhones());
+                contactRepository.save(updatedContact);
+                return ResponseEntity.ok(new MessageResponse("Contact updated successfully!"));
+            }
         } else {
             log.info("In updateContact ContactService - contact isn't exist");
             return ResponseEntity
@@ -124,11 +172,22 @@ public class ContactServiceImpl implements ContactService {
     }
 
     @Override
-    public ResponseEntity<?> deleteContact(String name) {
-        Contact contact = contactRepository.findByName(name).get();
-        log.info("In deleteContact ContactService - deleted contact with name: '{}'", name);
-        contactRepository.delete(contact);
-        return ResponseEntity.ok(new MessageResponse("Contact deleted successfully!"));
+    public ResponseEntity<?> deleteContact(String username,String name) {
+        Long userId = userRepository.findByUsername(username).get().getId();
+        boolean isContactCreated = contactRepository.findAll()
+                .stream()
+                .anyMatch(c -> c.getName().equalsIgnoreCase(name) && c.getUser().getId().equals(userId));
+        if (isContactCreated) {
+            Contact contact = contactRepository.findByNameAndUserId(name,userId).get();
+            log.info("In deleteContact ContactService - deleted contact with name: '{}'", name);
+            contactRepository.delete(contact);
+            return ResponseEntity.ok(new MessageResponse("Contact deleted successfully!"));
+        }else {
+            log.info("In deleteContact ContactService - contact isn't exist");
+            return ResponseEntity
+                    .badRequest()
+                    .body(new MessageResponse("Error: Contact  isn't exist"));
+        }
     }
 
     @Override

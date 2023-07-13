@@ -1,4 +1,4 @@
-package yurii.karpliuk.phoneContacts.security;
+package yurii.karpliuk.phoneContacts.security.config;
 
 
 import jakarta.servlet.Filter;
@@ -25,7 +25,18 @@ public class WebSecurityConfig {
         http.cors().and().csrf()
                 .disable()
                 .authorizeHttpRequests()
-                .requestMatchers("/api/auth/**")
+                .requestMatchers("/api/auth/**",
+                        "/v2/api-docs",
+                        "/v3/api-docs",
+                        "/v3/api-docs/**",
+                        "/configuration/ui",
+                        "/swagger-resources/**",
+                        "/swagger-resources",
+                        "/configuration/security",
+                        "/configuration/ui",
+                        "/swagger-ui.html",
+                        "/swagger-ui/**",
+                        "/webjars/**")
                 .permitAll()
                 .anyRequest()
                 .authenticated()

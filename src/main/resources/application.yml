@@ -7,6 +7,8 @@ spring:
   jpa:
     hibernate.ddl-auto: update
     show-sql: true
-#jwt:
-#  secret: foodDelivery
-#  expiration: 300000
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+
